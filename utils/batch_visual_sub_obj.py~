@@ -1,0 +1,111 @@
+
+# coding: utf-8
+
+# In[1]:
+
+
+import pickle as pkl
+import torch
+import cv2
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import skimage.io as sio
+import numpy as np
+
+
+# In[2]:
+
+
+_dir = "/home/gauravm/himangi/scene-graphs-major-project/"
+
+
+# In[3]:
+
+
+def create_bb_batch():
+	with open(_dir + "vrd-dataset/train.pkl", 'rb') as infile:
+		data = pkl.load(infile, encoding = 'latin1')
+	
+	d = dict()
+
+	for img_data in data:
+# 		print (img_data)
+		if img_data != None:
+			x = []
+			y = []
+			img_name = img_data['img_path'][8:]
+			d[img_name] = []
+			for i, j, k in zip(img_data['ix1'], img_data['ix2'], img_data['rel_classes']):
+				l = []
+				l.append([bb for bb in img_data['boxes'][i]])
+				l.append([bb for bb in img_data['boxes'][j]])
+				x.append(l)
+				y.append(k[0])
+
+			d[img_name].append(x)
+			d[img_name].append(y)
+
+	return d
+
+
+# In[4]:
+
+
+def create_image_bb_batch(key, val):
+
+    # Image in bounding box of x bb
+    y = []
+    tensor_list = []
+    img = sio.imread(_dir + "vrd-dataset/" + str(key))
+    print (key, len(val[0]))
+    for v in val[0]:   
+        sub = img[v[0][1]:v[0][1]+v[0][3], v[0][0]:v[0][0]+v[0][2]]
+        obj = img[v[1][1]:v[1][1]+v[1][3], v[1][0]:v[1][0]+v[1][2]]
+        sub_resized = cv2.resize(sub, (128, 128))
+        obj_resized = cv2.resize(obj, (128, 128))
+
+        sub_resized = np.asarray(sub_resized).transpose(-1, 0, 1) 
+        sub_resized = torch.from_numpy(np.asarray(sub_resized)) 
+
+        obj_resized = np.asarray(obj_resized).transpose(-1, 0, 1) 
+        obj_resized = torch.from_numpy(np.asarray(obj_resized)) 
+
+        rel = torch.cat((sub_resized, obj_resized), 0)
+        tensor_list.append(rel)
+        print (rel.shape)    
+    
+    # One-hot vector of val[1]
+    for label in val[1]:
+        y.append(label)
+
+#     print (y)
+    return (tensor_list, y)
+
+
+# In[5]:
+
+
+if __name__=='__main__':
+    d_bb = create_bb_batch()
+    final_tensor_list = []
+    y = []
+    check_x = []
+    check_y = []
+    for key, val in d_bb.items():
+        t_l, label = create_image_bb_batch(key, val)
+        check_x.append(len(t_l))
+        check_y.append(len(label))
+        for i in t_l:
+            final_tensor_list.append(i)
+        for j in label:
+            y.append(j)
+        
+    x = torch.stack(final_tensor_list)
+    y = torch.Tensor(y)
+    print (x.shape, y.shape)
+    
+    print (sum(check_x), sum(check_y))
+    
+    #torch.save(x, 'visual_sub_obj_train_x.pt')
+    #torch.save(y, 'visual_sub_obj_train_y.pt')
+

@@ -1,0 +1,13 @@
+import pickle as pkl
+
+with open('/home/himangi/8th-Sem/major-project/Scene-Graph-Generation/vrd-dataset/train.pkl', 'rb') as infile:
+	d = pkl.load(infile)
+	
+rel_dict = {}
+	
+for i in range(0, len(d)):
+	for ix1, ix2, rel in zip(d[i]['ix1'], d[i]['ix2'], d[i]['rel_classes']):
+		key = str(d[i]['classes'][ix1]) + str(',') + str(rel[0]) + str(',') + str(d[i]['classes'][ix2])
+		rel_dict[key] = []
+
+
